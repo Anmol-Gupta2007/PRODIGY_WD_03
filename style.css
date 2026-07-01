@@ -34,6 +34,10 @@ h1 {
     margin-bottom: 15px;
     font-size: 18px;
     color: #00ffff;
+    display: flex;
+    justify-content: center;
+    gap: 15px; /* Adds space between dropdowns */
+    flex-wrap: wrap;
 }
 
 select {
