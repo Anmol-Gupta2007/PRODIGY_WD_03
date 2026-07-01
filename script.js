@@ -2,9 +2,11 @@ const boardElement = document.getElementById("board");
 const statusElement = document.getElementById("status");
 const lineElement = document.getElementById("line");
 
-// Score variables
-let playerScore = 0;
-let aiScore = 0;
+// State variables
+let gameMode = "pva"; // 'pva' (Player vs AI) or 'pvp' (Player vs Player)
+let currentPlayer = "X"; // Used strictly for PvP mode
+let player1Score = 0;
+let player2Score = 0; // Acts as AI score in PvA mode
 let drawScore = 0;
 
 let HUMAN;
@@ -55,6 +57,30 @@ function playSound(type) {
     }
 }
 
+// Handle Mode Switching
+function changeMode() {
+    gameMode = document.getElementById("mode").value;
+    const diffContainer = document.getElementById("diff-container");
+    
+    if (gameMode === "pvp") {
+        diffContainer.style.display = "none";
+        document.getElementById('score-player').textContent = `Player 1: 0`;
+        document.getElementById('score-ai').textContent = `Player 2: 0`;
+    } else {
+        diffContainer.style.display = "inline";
+        document.getElementById('score-player').textContent = `Player: 0`;
+        document.getElementById('score-ai').textContent = `AI: 0`;
+    }
+
+    // Reset scores
+    player1Score = 0;
+    player2Score = 0;
+    drawScore = 0;
+    document.getElementById('score-draw').textContent = `Draws: 0`;
+    
+    restartGame();
+}
+
 // Create Board
 function createBoard() {
     boardElement.innerHTML = "";
@@ -74,7 +100,6 @@ function createBoard() {
 
 // Draw the glowing winning line
 function drawWinLine(pattern) {
-    // Percentages align with the centers of a 3x3 grid perfectly, ensuring it's responsive on mobile
     const percentCoords = {
         0: { x: "16.6%", y: "16.6%" }, 1: { x: "50%", y: "16.6%" }, 2: { x: "83.4%", y: "16.6%" },
         3: { x: "16.6%", y: "50%" },   4: { x: "50%", y: "50%" },   5: { x: "83.4%", y: "50%" },
@@ -90,7 +115,7 @@ function drawWinLine(pattern) {
     lineElement.setAttribute("y2", endPos.y);
 }
 
-// Player Move
+// Player Move (Handles both PvP and PvA)
 function playerMove(index) {
     if (board[index] !== "" || gameOver) {
         if (!gameOver) playSound('error');
@@ -98,21 +123,43 @@ function playerMove(index) {
     }
 
     playSound('click');
-    board[index] = HUMAN;
-    updateBoard();
 
-    if (checkWinner(board, HUMAN)) {
-        endGame(HUMAN);
-        return;
+    if (gameMode === "pvp") {
+        board[index] = currentPlayer;
+        updateBoard();
+
+        if (checkWinner(board, currentPlayer)) {
+            endGame(currentPlayer);
+            return;
+        }
+
+        if (isBoardFull(board)) {
+            endGame("DRAW");
+            return;
+        }
+
+        // Switch turns for PvP
+        currentPlayer = currentPlayer === "X" ? "O" : "X";
+        statusElement.textContent = `Player ${currentPlayer === "X" ? "1" : "2"}'s Turn (${currentPlayer})`;
+
+    } else {
+        // Player vs AI Logic
+        board[index] = HUMAN;
+        updateBoard();
+
+        if (checkWinner(board, HUMAN)) {
+            endGame(HUMAN);
+            return;
+        }
+
+        if (isBoardFull(board)) {
+            endGame("DRAW");
+            return;
+        }
+
+        statusElement.textContent = "🤖 AI Thinking...";
+        setTimeout(aiMove, 400);
     }
-
-    if (isBoardFull(board)) {
-        endGame("DRAW");
-        return;
-    }
-
-    statusElement.textContent = "🤖 AI Thinking...";
-    setTimeout(aiMove, 400); // Slight delay so it feels like thinking
 }
 
 // AI Move (Updated with Difficulty Settings)
@@ -123,15 +170,13 @@ function aiMove() {
     let move = -1;
     let useMinimax = false;
 
-    // Determine if AI uses perfect logic based on difficulty
     if (difficulty === "hard") {
         useMinimax = true;
     } else if (difficulty === "medium") {
         useMinimax = Math.random() > 0.5; // 50% chance to play perfectly
-    } // easy means useMinimax stays false
+    }
 
     if (useMinimax) {
-        // Minimax Algorithm Logic
         let bestScore = -Infinity;
         for (let i = 0; i < board.length; i++) {
             if (board[i] === "") {
@@ -145,7 +190,6 @@ function aiMove() {
             }
         }
     } else {
-        // Random Move Logic
         let availableCells = [];
         for (let i = 0; i < board.length; i++) {
             if (board[i] === "") availableCells.push(i);
@@ -205,9 +249,9 @@ function minimax(currentBoard, depth, isMaximizing) {
 // Check Winner (Stores winning cells)
 function checkWinner(boardState, player) {
     const patterns = [
-        [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-        [0, 3, 6], [1, 4, 7], [2, 5, 8], // Cols
-        [0, 4, 8], [2, 4, 6]             // Diagonals
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6]
     ];
 
     for (let pattern of patterns) {
@@ -241,26 +285,40 @@ function updateBoard() {
 function endGame(winner) {
     gameOver = true;
     
-    if (winner === HUMAN) {
-        statusElement.textContent = "🎉 Congratulations! You Win! 🎉";
-        playerScore++;
-        document.getElementById('score-player').textContent = `Player: ${playerScore}`;
-        drawWinLine(winningCells);
-        playSound('win');
-    } else if (winner === AI) {
-        statusElement.textContent = "🤖 AI Wins! Better luck next time.";
-        aiScore++;
-        document.getElementById('score-ai').textContent = `AI: ${aiScore}`;
-        drawWinLine(winningCells);
-        playSound('lose');
-    } else {
+    if (winner === "DRAW") {
         statusElement.textContent = "🤝 It's a Draw!";
         drawScore++;
         document.getElementById('score-draw').textContent = `Draws: ${drawScore}`;
-        playSound('error'); // Soft buzz for a draw
+        playSound('error');
+    } else {
+        drawWinLine(winningCells);
+
+        if (gameMode === "pvp") {
+            if (winner === "X") {
+                statusElement.textContent = "🎉 Player 1 (X) Wins! 🎉";
+                player1Score++;
+                document.getElementById('score-player').textContent = `Player 1: ${player1Score}`;
+            } else {
+                statusElement.textContent = "🎉 Player 2 (O) Wins! 🎉";
+                player2Score++;
+                document.getElementById('score-ai').textContent = `Player 2: ${player2Score}`;
+            }
+            playSound('win');
+        } else {
+            if (winner === HUMAN) {
+                statusElement.textContent = "🎉 Congratulations! You Win! 🎉";
+                player1Score++;
+                document.getElementById('score-player').textContent = `Player: ${player1Score}`;
+                playSound('win');
+            } else if (winner === AI) {
+                statusElement.textContent = "🤖 AI Wins! Better luck next time.";
+                player2Score++;
+                document.getElementById('score-ai').textContent = `AI: ${player2Score}`;
+                playSound('lose');
+            }
+        }
     }
 
-    // Wait 2.5 seconds before automatically restarting so user can see the line and message
     setTimeout(() => {
         restartGame();
     }, 2500);
@@ -278,22 +336,27 @@ function restartGame() {
     lineElement.setAttribute("x2", "0");
     lineElement.setAttribute("y2", "0");
 
-    // Randomly assign X or O
-    if (Math.random() < 0.5) {
-        HUMAN = "X";
-        AI = "O";
+    if (gameMode === "pvp") {
+        currentPlayer = "X";
+        statusElement.textContent = `Player 1's Turn (X)`;
+        createBoard();
     } else {
-        HUMAN = "O";
-        AI = "X";
-    }
+        // Player vs AI starting setup
+        if (Math.random() < 0.5) {
+            HUMAN = "X";
+            AI = "O";
+        } else {
+            HUMAN = "O";
+            AI = "X";
+        }
 
-    statusElement.textContent = `You are ${HUMAN}`;
-    createBoard();
+        statusElement.textContent = `You are ${HUMAN}`;
+        createBoard();
 
-    // If AI gets X, it starts first
-    if (AI === "X") {
-        statusElement.textContent = "AI Starts...";
-        setTimeout(aiMove, 500);
+        if (AI === "X") {
+            statusElement.textContent = "AI Starts...";
+            setTimeout(aiMove, 500);
+        }
     }
 }
 
