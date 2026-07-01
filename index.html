@@ -9,15 +9,23 @@
 <body>
 
     <div class="container">
-        <h1>🎮 Tic-Tac-Toe AI</h1>
+        <h1>🎮 Tic-Tac-Toe</h1>
 
         <div class="controls">
-            <label for="difficulty">Difficulty: </label>
-            <select id="difficulty">
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard" selected>Hard (Unbeatable)</option>
+            <label for="mode">Mode: </label>
+            <select id="mode" onchange="changeMode()">
+                <option value="pva">Player vs AI</option>
+                <option value="pvp">Player vs Player</option>
             </select>
+
+            <span id="diff-container">
+                <label for="difficulty"> Difficulty: </label>
+                <select id="difficulty">
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard" selected>Hard (Unbeatable)</option>
+                </select>
+            </span>
         </div>
 
         <div id="scoreboard">
